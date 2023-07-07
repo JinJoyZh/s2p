@@ -44,6 +44,7 @@ from s2p import ply
 from s2p import triangulation
 from s2p import fusion
 from s2p import visualisation
+from s2p.ply import splice_ply
 
 
 def pointing_correction(tile, i):
@@ -316,6 +317,7 @@ def disparity_to_ply(tile):
         common.remove(mask_rect)
         common.remove(mask_orig)
         common.remove(os.path.join(out_dir, 'pair_1', 'rectified_ref.tif'))
+    return ply_file
 
 
 def mean_heights(tile):
@@ -427,6 +429,7 @@ def heights_to_ply(tile):
     if cfg['clean_intermediate']:
         common.remove(height_map)
         common.remove(os.path.join(out_dir, 'mask.png'))
+    return plyfile
 
 
 def plys_to_dsm(tile):
@@ -590,6 +593,7 @@ def main(user_cfg, start_from=0):
         parallel.launch_calls(stereo_matching, tiles_pairs, nb_workers_stereo,
                               timeout=timeout)
 
+    plyfiles = []
     if start_from <= 5:
         if n > 2:
             # disparity-to-height step:
@@ -606,12 +610,12 @@ def main(user_cfg, start_from=0):
 
             # heights-to-ply step:
             print('5d) merging height maps and computing point clouds...')
-            parallel.launch_calls(heights_to_ply, tiles, nb_workers,
+            plyfiles = parallel.launch_calls(heights_to_ply, tiles, nb_workers,
                                   timeout=timeout)
         else:
             # triangulation step:
             print('5) triangulating tiles...')
-            parallel.launch_calls(disparity_to_ply, tiles, nb_workers,
+            plyfiles = parallel.launch_calls(disparity_to_ply, tiles, nb_workers,
                                   timeout=timeout)
 
     # local-dsm-rasterization step:
@@ -625,6 +629,8 @@ def main(user_cfg, start_from=0):
         global_dsm(tiles)
     common.print_elapsed_time()
 
+    if(cfg["splice_ply"]):
+        splice_ply(plyfiles, cfg['out_dir'] + "/spliced_map.ply")
     # cleanup
     common.garbage_cleanup()
     common.print_elapsed_time(since_first_call=True)

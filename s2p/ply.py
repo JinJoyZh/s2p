@@ -2,7 +2,9 @@
 
 import numpy as np
 import plyfile
+import datetime
 
+from plyfile import PlyData, PlyElement
 
 def read_3d_point_cloud_from_ply(path_to_ply_file):
     """
@@ -62,3 +64,23 @@ def write_3d_point_cloud_to_ply(path_to_ply_file, coordinates, colors=None,
     plydata = plyfile.PlyElement.describe(np.asarray(tuples, dtype=dtypes),
                                           'vertex')
     plyfile.PlyData([plydata], comments=comments).write(path_to_ply_file)
+
+def splice_ply(plyfiles, output_file):
+    starttime = datetime.datetime.now()
+    full_cloud = list()
+    for plyfile in plyfiles:
+        array, comments = read_3d_point_cloud_from_ply(plyfile)
+        full_cloud.append(array)
+    full_cloud = np.concatenate(full_cloud)
+    datatype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4'), ('red', 'u1'), ('green', 'u1'), ('blue', 'u1'),
+                ('confidence', 'f4')]
+    tuples = [tuple(x) for x in full_cloud]
+    vertex = np.asarray(tuples, dtype=datatype)
+    el = PlyElement.describe(vertex, 'vertex')
+    endtime = datetime.datetime.now()
+    print("spliced ply file generated")
+    print((endtime - starttime).seconds)
+    PlyData([el], text=True).write(output_file)
+    endtime = datetime.datetime.now()
+    print("spliced ply file wroten")
+    print((endtime - starttime).seconds)
